@@ -1,0 +1,93 @@
+org: ypcdev
+app: bl-image-gram-api
+service: bl-image-gram-api
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  endpointType: REGIONAL
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "dynamodb:BatchGetItem"
+        - "dynamodb:ConditionCheckItem"
+        - "dynamodb:GetItem"
+        - "dynamodb:PutItem"
+        - "dynamodb:Query"
+        - "dynamodb:UpdateItem"
+        - "dynamodb:DeleteItem"
+      Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-imagegramTable-${sls:stage}
+  environment:
+    TABLE_NAME: ${self:service}-imagegramTable-${sls:stage}
+
+functions:
+  createUser:
+    handler: src/handlers/createUser.main
+    events:
+      - http:
+          path: /users
+          method: post
+          request:
+            schemas:
+              application/json: ${file(jsonschemas/createUserRequest.json)}
+  getUser:
+    handler: src/handlers/getUser.main
+    events:
+      - http:
+          path: /users/{username}
+          method: get
+  createPost:
+    handler: src/handlers/createPost.main
+    events:
+      - http:
+          path: /users/{username}/posts
+          method: post
+  getPost:
+    handler: src/handlers/getPost.main
+    events:
+      - http:
+          path: /users/{username}/posts/{postId}
+          method: get
+  getPostsByUser:
+    handler: src/handlers/getPostsByUser.main
+    events:
+      - http:
+          path: /users/{username}/allposts
+          method: get
+  commentOnPost:
+    handler: src/handlers/commentOnPost.main
+    events:
+      - http:
+          path: /users/{username}/posts/{postId}/comments
+          method: post
+          request:
+            schemas:
+              application/json: ${file(jsonschemas/commentOnPostRequest.json)}
+  deleteComment:
+    handler: src/handlers/deleteComment.main
+    events:
+      - http:
+          path: /users/{username}/posts/{postId}/comments/{commentId}
+          method: delete
+          request:
+            schemas:
+              application/json: ${file(jsonschemas/deleteCommentonPostRequest.json)}
+
+resources:
+  Resources:
+    ImagegramTable:
+      Type: "AWS::DynamoDB::Table"
+      Properties:
+        TableName: ${self:service}-imagegramTable-${sls:stage}
+        AttributeDefinitions: 
+          - AttributeName: "PK"
+            AttributeType: "S"
+          - AttributeName: "SK"
+            AttributeType: "S"
+        KeySchema: 
+          - AttributeName: "PK"
+            KeyType: "HASH"
+          - AttributeName: "SK"
+            KeyType: "RANGE"
+        BillingMode: "PAY_PER_REQUEST"
