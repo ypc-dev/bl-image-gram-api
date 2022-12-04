@@ -1,10 +1,11 @@
 const User = require("../models/user")
+const userService = require("../services/userService")
 
-const main = async(event) => {
+const main = async (event) => {
     const { username } = JSON.parse(event.body)
-    const user = new User.User(username)
+    const user = new User(username)
     
-    return await User.createUser(user)
+    return await userService.createUser(user)
 }
 
 module.exports = {

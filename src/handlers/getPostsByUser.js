@@ -1,9 +1,9 @@
-const Post = require("../models/post")
+const postService = require("../services/postService")
 
 const main = async (event) => {
     const { username } = event.pathParameters
     
-    return await Post.getPostsByUser(username)
+    return await postService.getPostsByUser(username)
 }
 
 module.exports = {

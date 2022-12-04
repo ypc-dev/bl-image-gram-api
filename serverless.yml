@@ -1,5 +1,3 @@
-org: ypcdev
-app: bl-image-gram-api
 service: bl-image-gram-api
 frameworkVersion: '3'
 

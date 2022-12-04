@@ -1,9 +1,9 @@
-const User = require("../models/user")
+const userService = require("../services/userService")
 
 const main = async (event) => {
     const { username } = event.pathParameters
     
-    return await User.getUser(username)
+    return await userService.getUser(username)
 }
 
 module.exports = {

@@ -1,12 +1,12 @@
-const Comment = require("../models/comment")
 const Post = require("../models/post")
+const commentService = require("../services/commentService")
 
 const main = async (event) => {
     const { username, postId } = event.pathParameters
     const { commenterUsername, content } = JSON.parse(event.body)
-    const post = new Post.Post(username, postId)
+    const post = new Post(username, postId)
 
-    return await Comment.commentOnPost(post, commenterUsername, content)
+    return await commentService.commentOnPost(post, commenterUsername, content)
 
 }
 

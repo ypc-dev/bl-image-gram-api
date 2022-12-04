@@ -1,6 +1,6 @@
 const AWS = require("aws-sdk")
 
-// Use the same client connection if warm start
+// Use the same client connection if not cold start invocation
 let client = null
 
 const getDynamoDBClient = () => {
