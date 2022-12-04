@@ -2,10 +2,19 @@ const ULID = require('ulid')
 const dayjs = require('dayjs')
 const dynamoDBClient = require("./client")
 
+const AWS = require("aws-sdk")
+const Jimp = require("jimp")
+const parseMultipart = require("parse-multipart")
+const path = require("path")
+const replaceExt = require("replace-ext")
+const BUCKET = process.env.BUCKET
+const s3 = new AWS.S3()
+
 class Post {
-    constructor(username, postId = ULID.ulid(), commentCount, createdDate) {
+    constructor(username, postId = ULID.ulid(), imageLink, commentCount, createdDate) {
         this.username = username
         this.postId = postId
+        this.imageLink = imageLink || ""
         this.commentCount = commentCount || 0
         this.createdDate = createdDate || dayjs().format()
     }
@@ -30,14 +39,17 @@ class Post {
             ...this.keys(),
             username: { S: this.username },
             postId: { S: this.postId },
+            imageLink: { S: this.imageLink },
             commentCount: { N: this.commentCount.toString() },
             createdDate: { S: this.createdDate }
         }
     }
 }
 
-const createPost = async (post) => {
+const createPost = async (post, event) => {
     const client = dynamoDBClient.getDynamoDBClient()
+    const imagelink = await uploadImages(event, post.username, post.postId)
+    post.imageLink = imagelink
 
     try {
         await client
@@ -96,6 +108,68 @@ const createPost = async (post) => {
     }
 }
 
+const uploadImages = async (event, username, postId) => {
+    try {
+        const { filename, data } = extractFile(event)
+
+        if (!acceptedFormat(filename)) {
+            return {
+                statusCode: 403,
+                body: JSON.stringify({
+                    message: "Allowed image formats: .png, .jpg, .jpeg, .bmp"
+                })
+            }
+        }
+
+        let resizedImageData
+        const imageToResize = await Jimp.read(data)
+        imageToResize.resize(600, 600)
+        imageToResize.getBuffer(Jimp.MIME_JPEG, (err, buffer) => {
+            resizedImageData = buffer
+        })
+        const resizedFilename = replaceExt(filename, ".jpg")
+
+        // Put original and resized images into their own folder in S3 bucket
+        await s3.putObject({
+            Bucket: BUCKET, Key: `original/${username}/${postId}/${filename}`, ACL: "public-read", Body: data
+        }).promise()
+        await s3.putObject({
+            Bucket: BUCKET, Key: `resized/${username}/${postId}/${resizedFilename}`, ACL: "public-read", Body: resizedImageData
+        }).promise()
+        const resizedImageLink = `https://${BUCKET}.s3.amazonaws.com/resized/${username}/${postId}/${resizedFilename}`
+
+        return resizedImageLink
+    } catch (error) {
+        console.error(error)
+
+        return {
+            statusCode: error.statusCode,
+            body: JSON.stringify({
+                message: `Error: ${error.message}`,
+                exceptionCode: `${error.code}`
+            })
+        }
+    }
+}
+
+const extractFile = (event) => {
+    const boundary = parseMultipart.getBoundary(event.headers["Content-Type"])
+    const bodyBuffer = Buffer.from(event.body, "base64")
+    const parts = parseMultipart.Parse(bodyBuffer, boundary)
+    const [{ filename, data }] = parts
+
+    return {
+        filename,
+        data
+    }
+}
+
+const acceptedFormat = (filename) => {
+    const acceptedFormats = [".jpg", ".jpeg", ".png", ".bmp"]
+
+    return acceptedFormats.includes(path.extname(filename))
+}
+
 const getPost = async (username, postId) => {
     const client = dynamoDBClient.getDynamoDBClient()
     const post = new Post(username, postId)
@@ -123,6 +197,7 @@ const getPost = async (username, postId) => {
             body: JSON.stringify({
                 username: response.Item.username.S,
                 postId: response.Item.postId.S,
+                imageLink: response.Item.imageLink.S,
                 commentCount: Number(response.Item.commentCount.N),
                 createdDate: response.Item.createdDate.S,
             })
@@ -151,7 +226,7 @@ const getPostsByUser = async (username) => {
                 ExpressionAttributeValues: {
                     ":postsByUser": { S: `USERPOST#${username}` }
                 },
-                ProjectionExpression: "postId, createdDate, commentCount",
+                ProjectionExpression: "postId, imageLink, createdDate, commentCount",
                 ScanIndexForward: false
             })
             .promise()
@@ -162,6 +237,7 @@ const getPostsByUser = async (username) => {
             comments = await getCommentsForPost(post.postId.S)
             result = {
                 postId: post.postId.S,
+                imageLink: post.imageLink.S,
                 createdDate: post.createdDate.S,
                 commentCount: post.commentCount.N,
                 recentComments: comments

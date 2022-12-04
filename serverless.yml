@@ -10,7 +10,6 @@ provider:
   iamRoleStatements:
     - Effect: "Allow"
       Action:
-        - "dynamodb:BatchGetItem"
         - "dynamodb:ConditionCheckItem"
         - "dynamodb:GetItem"
         - "dynamodb:PutItem"
@@ -22,6 +21,7 @@ provider:
     TABLE_NAME: ${self:service}-imagegramTable-${sls:stage}
     BUCKET: ${aws:accountId}-${self:service}-images-${sls:stage}
   logRetentionInDays: 14
+  versionFunctions: false
   apiGateway:
     binaryMediaTypes:
       - "multipart/form-data"
@@ -48,6 +48,8 @@ functions:
       - http:
           path: /users/{username}/posts
           method: post
+    role: CreatePostRole
+    timeout: 30
   getPost:
     handler: src/handlers/getPost.main
     events:
@@ -78,13 +80,6 @@ functions:
           request:
             schemas:
               application/json: ${file(jsonschemas/deleteCommentonPostRequest.json)}
-  uploadFile:
-    handler: src/handlers/uploadFile.main
-    events:
-      - http:
-          path: /file/upload
-          method: post
-    role: S3UploadRole
 
 resources:
   Resources:
@@ -108,7 +103,7 @@ resources:
       Properties:
         BucketName: ${aws:accountId}-${self:service}-images-${sls:stage}
         AccessControl: PublicRead
-    S3UploadRole:
+    CreatePostRole:
       Type: AWS::IAM::Role
       Properties:
         AssumeRolePolicyDocument:
@@ -120,10 +115,15 @@ resources:
                   - lambda.amazonaws.com
               Action: sts:AssumeRole
         Policies:
-          - PolicyName: S3UploadPolicy
+          - PolicyName: CreatePostPolicy
             PolicyDocument:
               Version: "2012-10-17"
               Statement:
+                - Effect: Allow
+                  Action:
+                    - dynamodb:ConditionCheckItem
+                    - dynamodb:PutItem
+                  Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-imagegramTable-${sls:stage}
                 - Effect: Allow
                   Action:
                     - s3:GetObject

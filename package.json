@@ -11,6 +11,7 @@
     "dayjs": "^1.11.6",
     "jimp": "^0.16.2",
     "parse-multipart": "^1.0.4",
+    "replace-ext": "^2.0.0",
     "ulid": "^2.3.0"
   }
 }
