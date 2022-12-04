@@ -193,20 +193,32 @@ const getPostsByUser = async (username) => {
 const getCommentsForPost = async (postId) => {
     const client = dynamoDBClient.getDynamoDBClient()
 
-    const response = await client
-        .query({
-            TableName: process.env.TABLE_NAME,
-            KeyConditionExpression: "PK = :postComments",
-            ExpressionAttributeValues: {
-                ":postComments": { S: `POSTCOMMENT#${postId}` }
-            },
-            ProjectionExpression: "commentId, createdDate, commenterUsername, content, postId",
-            ScanIndexForward: false, // Return posts sorted by descending date, already sorted by DynamoDB Sort Key
-            Limit: 2 // Limit to two most recent comments
-        })
-        .promise()
+    try {
+        const response = await client
+            .query({
+                TableName: process.env.TABLE_NAME,
+                KeyConditionExpression: "PK = :postComments",
+                ExpressionAttributeValues: {
+                    ":postComments": { S: `POSTCOMMENT#${postId}` }
+                },
+                ProjectionExpression: "commentId, createdDate, commenterUsername, content, postId",
+                ScanIndexForward: false, // Return posts sorted by descending date, already sorted by DynamoDB Sort Key
+                Limit: 2 // Limit to two most recent comments
+            })
+            .promise()
 
-    return response.Items.map(item => fromItem(item))
+        return response.Items.map(item => fromItem(item))
+    } catch (error) {
+        console.error(error)
+
+        return {
+            statusCode: error.statusCode,
+            body: JSON.stringify({
+                message: `Error: ${error.message}`,
+                exceptionCode: `${error.code}`
+            })
+        }
+    }
 }
 
 const fromItem = (item) => {

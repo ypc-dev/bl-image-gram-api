@@ -9,6 +9,8 @@
   "dependencies": {
     "aws-sdk": "^2.1265.0",
     "dayjs": "^1.11.6",
+    "jimp": "^0.16.2",
+    "parse-multipart": "^1.0.4",
     "ulid": "^2.3.0"
   }
 }

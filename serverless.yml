@@ -20,6 +20,11 @@ provider:
       Resource: arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:service}-imagegramTable-${sls:stage}
   environment:
     TABLE_NAME: ${self:service}-imagegramTable-${sls:stage}
+    BUCKET: ${aws:accountId}-${self:service}-images-${sls:stage}
+  logRetentionInDays: 14
+  apiGateway:
+    binaryMediaTypes:
+      - "multipart/form-data"
 
 functions:
   createUser:
@@ -73,6 +78,13 @@ functions:
           request:
             schemas:
               application/json: ${file(jsonschemas/deleteCommentonPostRequest.json)}
+  uploadFile:
+    handler: src/handlers/uploadFile.main
+    events:
+      - http:
+          path: /file/upload
+          method: post
+    role: S3UploadRole
 
 resources:
   Resources:
@@ -91,3 +103,42 @@ resources:
           - AttributeName: "SK"
             KeyType: "RANGE"
         BillingMode: "PAY_PER_REQUEST"
+    ImagegramBucket:
+      Type: "AWS::S3::Bucket"
+      Properties:
+        BucketName: ${aws:accountId}-${self:service}-images-${sls:stage}
+        AccessControl: PublicRead
+    S3UploadRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: S3UploadPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                    - s3:PutObject
+                    - s3:PutObjectAcl
+                  Resource:
+                    Fn::Sub:
+                      - "arn:aws:s3:::${BucketName}/*"
+                      - BucketName: {Ref: ImagegramBucket}
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    Fn::Sub:
+                      - arn:aws:logs:${Region}:${AccountId}:log-group:/aws/lambda/*:*:*
+                      - { Region: {Ref: AWS::Region}, AccountId: {Ref: AWS::AccountId} }
