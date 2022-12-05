@@ -2,7 +2,26 @@
 
 ## Table of contents
 
-[TOC]
+- [Yitpin Chin Imagegram API Challenge](#yitpin-chin-imagegram-api-challenge)
+  - [Table of contents](#table-of-contents)
+  - [Tech Stack](#tech-stack)
+  - [Current System Design](#current-system-design)
+    - [DynamoDB Database Design](#dynamodb-database-design)
+    - [Limitations with the Current System Design](#limitations-with-the-current-system-design)
+  - [Improved Future System Design](#improved-future-system-design)
+  - [Handling Throughput and Usage Forecast](#handling-throughput-and-usage-forecast)
+  - [Using the API](#using-the-api)
+      - [Create a User](#create-a-user)
+      - [Get a User](#get-a-user)
+      - [Create a Post with Image](#create-a-post-with-image)
+      - [Get a Post](#get-a-post)
+      - [Get List of all Posts by a User with the two most recent comments](#get-list-of-all-posts-by-a-user-with-the-two-most-recent-comments)
+      - [Comment on a Post](#comment-on-a-post)
+      - [Delete a Comment on a Post](#delete-a-comment-on-a-post)
+  - [Testing](#testing)
+  - [What should be done before shipping to production](#what-should-be-done-before-shipping-to-production)
+  - [How to Deploy an Instance of the API to Your AWS Account](#how-to-deploy-an-instance-of-the-api-to-your-aws-account)
+  - [Note](#note)
 
 ## Tech Stack
 
@@ -12,7 +31,7 @@
 
 ## Current System Design
 
-![Current System Design Diagram]("./screenshots/current_design.png")
+![Current System Design Diagram](/screenshots/current_design.jpg)
 
 - Every user request to the API is routed through **API Gateway** and then forwarded to one of the seven **Lambda Functions** depending on what the user is trying to accomplish.
 - Images uploaded by the user are processed, resized and then stored in **S3**.
@@ -34,7 +53,8 @@
   | Comment | POSTCOMMENT#{postId} | COMMENT#{commentId} |
 
 - How it looks in the AWS console:
-![DynamoDB Design Diagram in AWS console]("./screenshots/dynamoDB_design.png")
+
+![DynamoDB Design Diagram in AWS console](/screenshots/dynamoDB_design.jpg)
 
 ### Limitations with the Current System Design
 
@@ -47,7 +67,7 @@
 ## Improved Future System Design
 - This design follows an asynchronous API pattern to allow the application to accept large requests without hitting timeout or request limits.
 
-![Future System Design Diagram]("./screenshots/future_design.png")
+![Future System Design Diagram](/screenshots/future_design.jpg)
 
 1. The first request tells the API that the user wants to upload an image. It generates a [S3 presigned URL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html) and returns it to the client.
 2. The second executes the file upload directly to S3, which doesn't have a timeout.
