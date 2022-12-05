@@ -62,7 +62,7 @@ The API is up and running in my personal AWS account. You are welcomed to make r
 
 #### Create a User
 
-**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users`
+**URL**: `https://pfqwa4e4il.execute-api.us-east-1.amazonaws.com/dev/users`
 **Method**: `POST`
 **Request payload required fields**
 
@@ -74,33 +74,33 @@ The API is up and running in my personal AWS account. You are welcomed to make r
 
 #### Get a User
 
-**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}`
+**URL**: `https://pfqwa4e4il.execute-api.us-east-1.amazonaws.com/dev/users/{username}`
 **URL Parameters** : `username` of a user that has been created
 **Method**: `GET`
 
 
 #### Create a Post with Image
 
-**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts`
+**URL**: `https://pfqwa4e4il.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts`
 **URL Parameters** : `username` of a user that wants to create the post
 **Method**: `POST`
 **Note**: You must upload a file as part of this request. If you are using Postman, this [post](https://stackoverflow.com/a/16022213) will show you how. Other API clients should have the same capabilities.
 
 #### Get a Post
 
-**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}`
+**URL**: `https://pfqwa4e4il.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}`
 **URL Parameters** : `username` of the user who owns the post with `postId`
 **Method**: `GET`
 
 #### Get List of all Posts by a User with the two most recent comments
 
-**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/allposts`
+**URL**: `https://pfqwa4e4il.execute-api.us-east-1.amazonaws.com/dev/users/{username}/allposts`
 **URL Parameters** : `username` of the user whose posts you want to see
 **Method**: `GET`
 
 #### Comment on a Post
 
-**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}/comments`
+**URL**: `https://pfqwa4e4il.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}/comments`
 **URL Parameters** : `username` is the owner of the post with `postId` that you want to comment on
 **Method**: `POST`
 **Request payload required fields**
@@ -114,7 +114,7 @@ The API is up and running in my personal AWS account. You are welcomed to make r
 
 #### Delete a Comment on a Post
 
-**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}/comments/{commentId}`
+**URL**: `https://pfqwa4e4il.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}/comments/{commentId}`
 **URL Parameters** : `username` is the owner of the post with `postId`. `commentId` of the comment you want to delete and must belong to the post.
 **Method**: `DELETE`
 **Request payload required fields**
