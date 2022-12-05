@@ -70,7 +70,7 @@
 ![Future System Design Diagram](/screenshots/future_design.jpg)
 
 1. The first request tells the API that the user wants to upload an image. It generates a [S3 presigned URL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html) and returns it to the client.
-2. The second executes the file upload directly to S3, which doesn't have a timeout.
+2. The second executes the file upload directly to S3, using the presigned URL, which doesn't have a timeout.
 3. The client then continuously polls for the status of the upload job through a polling Lambda. Once the polling Lambda can see the file in S3, the client will be notified that the upload was successful.
 
 ## Handling Throughput and Usage Forecast
