@@ -1,92 +1,153 @@
-<!--
-title: 'AWS Simple HTTP Endpoint example in NodeJS'
-description: 'This template demonstrates how to make a simple HTTP API with Node.js running on AWS Lambda and API Gateway using the Serverless Framework.'
-layout: Doc
-framework: v3
-platform: AWS
-language: nodeJS
-authorLink: 'https://github.com/serverless'
-authorName: 'Serverless, inc.'
-authorAvatar: 'https://avatars1.githubusercontent.com/u/13742415?s=200&v=4'
--->
+# Yitpin Chin Imagegram API Challenge
 
-# Serverless Framework Node HTTP API on AWS
+## Table of contents
 
-This template demonstrates how to make a simple HTTP API with Node.js running on AWS Lambda and API Gateway using the Serverless Framework.
+[TOC]
 
-This template does not include any kind of persistence (database). For more advanced examples, check out the [serverless/examples repository](https://github.com/serverless/examples/) which includes Typescript, Mongo, DynamoDB and other examples.
+## Tech Stack
 
-## Usage
+- Node.js ([download](https://nodejs.org/en/download/) if required)
+- [Serverless Framework](https://www.serverless.com/)
+- AWS ([API Gateway](https://aws.amazon.com/api-gateway/), [Lambda Functions](https://aws.amazon.com/lambda/), [DynamoDB](https://aws.amazon.com/dynamodb/), [S3](https://aws.amazon.com/s3/))
 
-### Deployment
+## Current System Design
 
-```
-$ serverless deploy
-```
+![Current System Design Diagram]("./screenshots/current_design.png")
 
-After deploying, you should see output similar to:
+- Every user request to the API is routed through **API Gateway** and then forwarded to one of the seven **Lambda Functions** depending on what the user is trying to accomplish.
+- Images uploaded by the user are processed, resized and then stored in **S3**.
+- Other types of data are stored in a single table in **DynamoDB**.
 
-```bash
-Deploying aws-node-http-api-project to stage dev (us-east-1)
+### DynamoDB Database Design
 
-✔ Service deployed to stack aws-node-http-api-project-dev (152s)
+- DynamoDB is a managed NoSQL database by AWS that offers fast and reliable performance even as it scales.
+- DynamoDB was chosen as it fits well with the serverless compute model.
+- Data modelling with DynamoDB can be tricky for those used to relational databases and thus requires a different approach.
+- A single-table design was used to model the data for this API. This [approach](https://www.alexdebrie.com/posts/dynamodb-single-table/) is recommended by the AWS team to take full advantage of DynamoDB's capabilities.
+- By using a single-table design, we can reduce the number of calls to databases (network I/Os are usually the slowest part of an application).
+- DynamoDB Key Schema for the API:
 
-endpoint: GET - https://xxxxxxxxxx.execute-api.us-east-1.amazonaws.com/
-functions:
-  hello: aws-node-http-api-project-dev-hello (1.9 kB)
-```
+  | Entity  | PK                   | SK                  |
+  | ------- | -------------------- | ------------------- |
+  | User    | USER#{username}      | USER#{username}     |
+  | Post    | USERPOST#{username}  | POST#{postId}       |
+  | Comment | POSTCOMMENT#{postId} | COMMENT#{commentId} |
 
-_Note_: In current form, after deployment, your API is public and can be invoked by anyone. For production deployments, you might want to configure an authorizer. For details on how to do that, refer to [http event docs](https://www.serverless.com/framework/docs/providers/aws/events/apigateway/).
+- How it looks in the AWS console:
+![DynamoDB Design Diagram in AWS console]("./screenshots/dynamoDB_design.png")
 
-### Invocation
+### Limitations with the Current System Design
 
-After successful deployment, you can call the created application via HTTP:
+- The current system design has some limitations that means it is not suitable for processing larger requests. These are:
+  - AWS API Gateway has a 29s request timeout limit. It also has a 10MB payload size limit.
+  - AWS Lambda has a 6MB payload size limit. It also has a 15 minutes invocation timeout limit but since but it is sitting behind API Gateway, it will also have a 29s timeout limit.
+- These limits should be adequate for most images taken by smartphones but may pose issues for when trying to upload bigger images (e.g. from a DSLR camera).
+- The next section will talk about how the design can be improved to handle large requests.
 
-```bash
-curl https://xxxxxxx.execute-api.us-east-1.amazonaws.com/
-```
+## Improved Future System Design
+- This design follows an asynchronous API pattern to allow the application to accept large requests without hitting timeout or request limits.
 
-Which should result in response similar to the following (removed `input` content for brevity):
+![Future System Design Diagram]("./screenshots/future_design.png")
+
+1. The first request tells the API that the user wants to upload an image. It generates a [S3 presigned URL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html) and returns it to the client.
+2. The second executes the file upload directly to S3, which doesn't have a timeout.
+3. The client then continuously polls for the status of the upload job through a polling Lambda. Once the polling Lambda can see the file in S3, the client will be notified that the upload was successful.
+
+## Handling Throughput and Usage Forecast
+- If the traffic and throughput pattern is known, the different AWS services can be configured easily to scale to the demands of the applications traffic.
+- The application can be deployed to multiple regions to spread out the workload and improve latency for the end users.
+
+## Using the API
+The API is up and running in my personal AWS account. You are welcomed to make requests to it using something like [Postman](https://www.postman.com/downloads/).
+
+#### Create a User
+
+**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users`
+**Method**: `POST`
+**Request payload required fields**
 
 ```json
 {
-  "message": "Go Serverless v2.0! Your function executed successfully!",
-  "input": {
-    ...
-  }
+    "username": "john", #string
 }
 ```
 
-### Local development
+#### Get a User
 
-You can invoke your function locally by using the following command:
+**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}`
+**URL Parameters** : `username` of a user that has been created
+**Method**: `GET`
 
-```bash
-serverless invoke local --function hello
-```
 
-Which should result in response similar to the following:
+#### Create a Post with Image
 
-```
+**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts`
+**URL Parameters** : `username` of a user that wants to create the post
+**Method**: `POST`
+**Note**: You must upload a file as part of this request. If you are using Postman, this [post](https://stackoverflow.com/a/16022213) will show you how. Other API clients should have the same capabilities.
+
+#### Get a Post
+
+**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}`
+**URL Parameters** : `username` of the user who owns the post with `postId`
+**Method**: `GET`
+
+#### Get List of all Posts by a User with the two most recent comments
+
+**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/allposts`
+**URL Parameters** : `username` of the user whose posts you want to see
+**Method**: `GET`
+
+#### Comment on a Post
+
+**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}/comments`
+**URL Parameters** : `username` is the owner of the post with `postId` that you want to comment on
+**Method**: `POST`
+**Request payload required fields**
+
+```json
 {
-  "statusCode": 200,
-  "body": "{\n  \"message\": \"Go Serverless v3.0! Your function executed successfully!\",\n  \"input\": \"\"\n}"
+    "commenterUsername": "mary", #string
+    "content": "This is a comment!" #string
 }
 ```
 
+#### Delete a Comment on a Post
 
-Alternatively, it is also possible to emulate API Gateway and Lambda locally by using `serverless-offline` plugin. In order to do that, execute the following command:
+**URL**: `https://onxgbqllnj.execute-api.us-east-1.amazonaws.com/dev/users/{username}/posts/{postId}/comments/{commentId}`
+**URL Parameters** : `username` is the owner of the post with `postId`. `commentId` of the comment you want to delete and must belong to the post.
+**Method**: `DELETE`
+**Request payload required fields**
 
-```bash
-serverless plugin install -n serverless-offline
+```json
+{
+    "deletingUsername": "mary" #string
+}
 ```
 
-It will add the `serverless-offline` plugin to `devDependencies` in `package.json` file as well as will add it to `plugins` in `serverless.yml`.
+## Testing
+- I have included some basic testing as part of this challenge, mainly unit tests of the data models.
+- I would've like to have implemented some tests for the calls to DynamoDB and S3. This would've involved mocking out these services so that the tests isn't actually interacting with the actual services. From experience, this would've taken some amount of time that I felt fell outside the scope of the challenge. 
+- I used the [Jest](https://jestjs.io/) testing library. You can run the tests with `npm run test`
 
-After installation, you can start local emulation with:
+## What should be done before shipping to production
 
-```
-serverless offline
-```
+- More thorough request validations
+- Unit tests with high coverage, integration tests, E2E tests
+- CI/CD pipeline with static code analysis and vulnerability checks
+- Observability: logs, metrics, traces, alerts
 
-To learn more about the capabilities of `serverless-offline`, please refer to its [GitHub repository](https://github.com/dherault/serverless-offline).
+## How to Deploy an Instance of the API to Your AWS Account
+
+- [Download](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) the AWS CLI.
+- Generate access key and secret for AWS or use an existing one.
+- Run `aws configure` command and enter the required information.
+- Install Serverless Framework via `npm install -g serverless`.
+- Run `serverless deploy` from this repository.
+- It will now create the resources specified in the `serverless.yml` file in your AWS account.
+- You can run `serverless info` to see details about the service and its endpoints
+- Run `serverless remove` to remove the deployed service.
+
+## Note
+
+- Feel free to reach out if having issues with setting this up but should be fairly straightfoward. Have a good day :)
